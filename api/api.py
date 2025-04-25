@@ -3,7 +3,7 @@ import requests
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 import onnxruntime as ort
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
 MODEL_URLS = {
@@ -87,49 +87,4 @@ def generate(request: GenerateRequest, http_request: Request):
 
 @app.get("/", response_class=HTMLResponse)
 def root():
-    return """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>GPT-2 ONNX Demo</title>
-        <style>
-            body { font-family: Arial, sans-serif; margin: 2em; }
-            #output { margin-top: 1em; padding: 1em; border: 1px solid #ccc; }
-        </style>
-    </head>
-    <body>
-        <h1>GPT-2 ONNX Demo</h1>
-        <form id=\"gen-form\">
-            <label for=\"model\">Model:</label><br>
-            <select id=\"model\" name=\"model\">
-                <option value=\"gpt-2-vanilla\">gpt-2-vanilla</option>
-                <option value=\"gpt-2-ppo\">gpt-2-ppo</option>
-                <option value=\"gpt-grpo\">gpt-grpo</option>
-            </select><br><br>
-            <label for=\"prompt\">Prompt:</label><br>
-            <input type=\"text\" id=\"prompt\" name=\"prompt\" style=\"width: 300px;\" required><br><br>
-            <button type=\"submit\">Generate</button>
-        </form>
-        <div id=\"output\"></div>
-        <script>
-        document.getElementById('gen-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const prompt = document.getElementById('prompt').value;
-            const model = document.getElementById('model').value;
-            document.getElementById('output').innerText = 'Generating...';
-            const response = await fetch('/generate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt, model })
-            });
-            if (response.ok) {
-                const data = await response.json();
-                document.getElementById('output').innerText = data.output;
-            } else {
-                document.getElementById('output').innerText = 'Error: ' + response.statusText;
-            }
-        });
-        </script>
-    </body>
-    </html>
-    """
+    return FileResponse("api/static/index.html")
