@@ -2,4 +2,6 @@ fastapi
 uvicorn
 onnxruntime
 requests
-pydantic 
+pydantic
+transformers
+torch 

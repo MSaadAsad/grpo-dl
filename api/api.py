@@ -2,88 +2,67 @@ import os
 import requests
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
-import onnxruntime as ort
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+import onnxruntime as ort
+from transformers import GPT2Tokenizer
+import numpy as np
 
-MODEL_URLS = {
-    "gpt-2-vanilla": "<HF_ONNX_LINK_GPT2_VANILLA>",
-    "gpt-2-ppo": "<HF_ONNX_LINK_GPT2_PPO>",
-    "gpt-grpo": "<HF_ONNX_LINK_GPT_GRPO>"
-}
-MODEL_PATHS = {
-    name: f"{name}.onnx" for name in MODEL_URLS
-}
-
-model_sessions = {}
+MODEL_URL = "https://huggingface.co/MSaadAsad/gpt-2-standard/resolve/main/gpt2.onnx"
+MODEL_PATH = "gpt-2-vanilla.onnx"
+TOKENIZER_PATH = "gpt-2-vanilla_tokenizer"
 
 API_KEY = os.environ["DL_API_KEY"]
-
-def download_model(model_name):
-    model_url = MODEL_URLS[model_name]
-    model_path = MODEL_PATHS[model_name]
-    if not os.path.exists(model_path):
-        print(f"Downloading {model_name} model...")
-        response = requests.get(model_url)
-        response.raise_for_status()
-        with open(model_path, "wb") as f:
-            f.write(response.content)
-        print(f"Model {model_name} downloaded.")
-    return model_path
-
-def get_onnx_session(model_name):
-    if model_name not in model_sessions:
-        model_path = download_model(model_name)
-        try:
-            model_sessions[model_name] = ort.InferenceSession(model_path)
-        except Exception as e:
-            print(f"Failed to load ONNX model {model_name}: {e}")
-            return None
-    return model_sessions[model_name]
 
 app = FastAPI()
 
 # Mount static directory for frontend assets
 app.mount("/static", StaticFiles(directory="api/static"), name="static")
 
+# Download model and tokenizer if not present
+if not os.path.exists(MODEL_PATH):
+    print(f"Downloading model from {MODEL_URL}...")
+    r = requests.get(MODEL_URL)
+    r.raise_for_status()
+    with open(MODEL_PATH, "wb") as f:
+        f.write(r.content)
+if not os.path.exists(TOKENIZER_PATH):
+    print("Downloading tokenizer...")
+    tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+    tokenizer.save_pretrained(TOKENIZER_PATH)
+
+# Load ONNX session and tokenizer once at startup
+onnx_session = ort.InferenceSession(MODEL_PATH)
+tokenizer = GPT2Tokenizer.from_pretrained(TOKENIZER_PATH)
+
+def generate_onnx_gpt2(prompt, max_length=50):
+    input_ids = tokenizer.encode(prompt, return_tensors="np")
+    for _ in range(max_length):
+        outputs = onnx_session.run(None, {"input_ids": input_ids})
+        logits = outputs[0]
+        next_token_id = np.argmax(logits[:, -1, :], axis=-1).reshape(-1, 1)
+        input_ids = np.concatenate([input_ids, next_token_id], axis=1)
+        if next_token_id[0, 0] == tokenizer.eos_token_id:
+            break
+    return tokenizer.decode(input_ids[0], skip_special_tokens=True)
+
 class GenerateRequest(BaseModel):
     prompt: str
     model: str
+    max_length: int = 50
 
 class GenerateResponse(BaseModel):
     output: str
-
-# NOTE: Replace this with proper GPT-2 tokenization for real use
-# This is a placeholder for demonstration only
-def simple_tokenize(text):
-    return [ord(c) for c in text]
-
-def simple_detokenize(tokens):
-    return ''.join([chr(t) for t in tokens if t < 128])
 
 @app.post("/generate", response_model=GenerateResponse)
 def generate(request: GenerateRequest, http_request: Request):
     api_key = http_request.headers.get("x-api-key")
     if api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid or missing API key.")
-    if request.model not in MODEL_URLS:
-        raise HTTPException(status_code=400, detail="Invalid model name.")
-    ort_session = get_onnx_session(request.model)
-    if ort_session is None:
-        raise HTTPException(status_code=500, detail="Model not loaded.")
-    # Tokenize input (placeholder logic)
-    input_ids = simple_tokenize(request.prompt)
-    import numpy as np
-    input_array = np.array([input_ids], dtype=np.int64)
-    # Run ONNX model (input name may need adjustment)
-    try:
-        outputs = ort_session.run(None, {ort_session.get_inputs()[0].name: input_array})
-        # Assume output is a sequence of token ids
-        output_tokens = outputs[0][0].tolist()
-        output_text = simple_detokenize(output_tokens)
-        return GenerateResponse(output=output_text)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"ONNX inference failed: {e}")
+    if request.model != "gpt-2-vanilla":
+        raise HTTPException(status_code=400, detail="Only 'gpt-2-vanilla' is supported in this configuration.")
+    output_text = generate_onnx_gpt2(request.prompt, max_length=request.max_length)
+    return GenerateResponse(output=output_text)
 
 @app.get("/", response_class=HTMLResponse)
 def root():
