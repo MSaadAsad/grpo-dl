@@ -120,8 +120,5 @@ compiled/
 # Pyre type checker
 .pyre/
 
-# FastAPI static files
-api/static/
-
 # ONNX model files
 *.onnx
