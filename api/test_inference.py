@@ -2,28 +2,38 @@ import os
 import numpy as np
 import onnxruntime as ort
 from transformers import GPT2Tokenizer
+import requests
 
-MODEL_PATH = "gpt-2-vanilla.onnx"
-TOKENIZER_PATH = "gpt-2-vanilla_tokenizer"
-MODEL_URL = "https://huggingface.co/MSaadAsad/gpt-2-standard/resolve/main/gpt2.onnx"
+MODELS = {
+    "gpt-2-vanilla": {
+        "onnx_path": "gpt-2-vanilla.onnx",
+        "tokenizer_path": "gpt-2-vanilla_tokenizer",
+        "url": "https://huggingface.co/MSaadAsad/dl-grpo/resolve/main/gpt2.onnx"
+    },
+    "gpt-grpo": {
+        "onnx_path": "gpt-grpo.onnx",
+        "tokenizer_path": "gpt-grpo_tokenizer",
+        "url": "https://huggingface.co/MSaadAsad/dl-grpo/resolve/main/gpt2_grpo.onnx"
+    }
+}
 
-def ensure_model_and_tokenizer():
-    if not os.path.exists(MODEL_PATH):
-        import requests
-        url = MODEL_URL
-        print(f"Downloading model from {url}...")
-        r = requests.get(url)
+def ensure_model_and_tokenizer(model_name):
+    info = MODELS[model_name]
+    if not os.path.exists(info["onnx_path"]):
+        print(f"Downloading {model_name} model from {info['url']} ...")
+        r = requests.get(info["url"])
         r.raise_for_status()
-        with open(MODEL_PATH, "wb") as f:
+        with open(info["onnx_path"], "wb") as f:
             f.write(r.content)
-    if not os.path.exists(TOKENIZER_PATH):
-        print("Downloading tokenizer...")
+    if not os.path.exists(info["tokenizer_path"]):
+        print(f"Downloading {model_name} tokenizer ...")
         tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
-        tokenizer.save_pretrained(TOKENIZER_PATH)
+        tokenizer.save_pretrained(info["tokenizer_path"])
 
-def run_onnx_inference(prompt, max_length=50):
-    session = ort.InferenceSession(MODEL_PATH)
-    tokenizer = GPT2Tokenizer.from_pretrained(TOKENIZER_PATH)
+def run_onnx_inference(model_name, prompt, max_length=50):
+    info = MODELS[model_name]
+    session = ort.InferenceSession(info["onnx_path"])
+    tokenizer = GPT2Tokenizer.from_pretrained(info["tokenizer_path"])
     input_ids = tokenizer.encode(prompt, return_tensors="np")
     for _ in range(max_length):
         outputs = session.run(None, {"input_ids": input_ids})
@@ -35,8 +45,10 @@ def run_onnx_inference(prompt, max_length=50):
     return tokenizer.decode(input_ids[0], skip_special_tokens=True)
 
 if __name__ == "__main__":
-    ensure_model_and_tokenizer()
     prompt = "The quick brown fox"
-    print(f"Prompt: {prompt}")
-    generated = run_onnx_inference(prompt, max_length=50)
-    print(f"Generated: {generated}") 
+    for model_name in MODELS:
+        ensure_model_and_tokenizer(model_name)
+        print(f"\nModel: {model_name}")
+        print(f"Prompt: {prompt}")
+        generated = run_onnx_inference(model_name, prompt, max_length=50)
+        print(f"Generated: {generated}") 
