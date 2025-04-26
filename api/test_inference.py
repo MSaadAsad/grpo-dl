@@ -14,6 +14,11 @@ MODELS = {
         "onnx_path": "gpt-grpo.onnx",
         "tokenizer_path": "gpt-grpo_tokenizer",
         "url": "https://huggingface.co/MSaadAsad/dl-grpo/resolve/main/gpt2_grpo.onnx"
+    },
+    "gpt-2-ppo": {
+        "onnx_path": "gpt-2-ppo.onnx",
+        "tokenizer_path": "gpt-2-ppo_tokenizer",
+        "url": "https://huggingface.co/MSaadAsad/dl-grpo/resolve/main/gpt2_ppo.onnx"
     }
 }
 

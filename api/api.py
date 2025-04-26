@@ -10,7 +10,7 @@ import numpy as np
 
 MODEL_INFOS = {
     "gpt-2-vanilla": {
-        "url": "https://huggingface.co/MSaadAsad/gpt-2-standard/resolve/main/gpt2.onnx",
+        "url": "https://huggingface.co/MSaadAsad/dl-grpo/resolve/main/gpt2.onnx",
         "onnx_path": "gpt-2-vanilla.onnx",
         "tokenizer_path": "gpt-2-vanilla_tokenizer"
     },
@@ -18,6 +18,11 @@ MODEL_INFOS = {
         "url": "https://huggingface.co/MSaadAsad/dl-grpo/resolve/main/gpt2_grpo.onnx",
         "onnx_path": "gpt-grpo.onnx",
         "tokenizer_path": "gpt-grpo_tokenizer"
+    },
+    "gpt-2-ppo": {
+        "url": "https://huggingface.co/MSaadAsad/dl-grpo/resolve/main/gpt2_ppo.onnx",
+        "onnx_path": "gpt-2-ppo.onnx",
+        "tokenizer_path": "gpt-2-ppo_tokenizer"
     }
 }
 
