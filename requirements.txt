@@ -3,5 +3,4 @@ uvicorn
 onnxruntime
 requests
 pydantic
-transformers
-torch 
+transformers 
